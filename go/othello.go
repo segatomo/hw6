@@ -9,7 +9,6 @@ import (
 
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 )
 
@@ -17,6 +16,7 @@ func init() {
 	http.HandleFunc("/", getMove)
 }
 
+// Game is ...
 type Game struct {
 	Board Board `json:board`
 }
@@ -28,7 +28,7 @@ type Game struct {
 func getMove(w http.ResponseWriter, r *http.Request) {
 	ctx := appengine.NewContext(r)
 	var js []byte
-	defer r.Body.Close()
+	defer r.Body.Close()  // defer -> 関数が終了した時に呼び出される
 	js, _ = ioutil.ReadAll(r.Body)
 	if len(js) < 1 {
 		js = []byte(r.FormValue("json"))
@@ -44,7 +44,7 @@ Paste JSON here:<p/><textarea name=json cols=80 rows=24></textarea>
 		return
 	}
 	var game Game
-	err := json.Unmarshal(js, &game)
+	err := json.Unmarshal(js, &game)  // json(js []byte)を構造体にパースしている
 	if err != nil {
 		fmt.Fprintf(w, "invalid json %v? %v", string(js), err)
 		return
@@ -61,15 +61,15 @@ Paste JSON here:<p/><textarea name=json cols=80 rows=24></textarea>
 	// list of possible moves, but you'll want to make this choose a
 	// better move (probably using some game tree traversal algorithm
 	// like MinMax).
-	move := moves[rand.Intn(len(moves))]
+	move := board.WeightBoard(moves)
 	fmt.Fprintf(w, "[%d,%d]", move.Where[0], move.Where[1])
 }
 
 type Piece int8
 
 const (
-	Empty Piece = iota
-	Black Piece = iota
+	Empty Piece = iota  // iotaは型なしの整数の連番を生成
+	Black Piece = iota  // 省略可能 
 	White Piece = iota
 
 	// Red/Blue are aliases for Black/White
@@ -77,6 +77,7 @@ const (
 	Blue = White
 )
 
+// Opposite 石を裏返す
 func (p Piece) Opposite() Piece {
 	switch p {
 	case White:
@@ -100,6 +101,7 @@ type Board struct {
 type Position [2]int
 
 // Valid returns true iff this is a valid board position.
+// 正当な位置ならばValidはtrueを返す
 func (p Position) Valid() bool {
 	ok := func(i int) bool { return 1 <= i && i <= 8 }
 	return ok(p[0]) && ok(p[1])
@@ -271,4 +273,55 @@ func (b Board) String() string {
 	buf.WriteString("-+--------+\n")
 	buf.WriteString(" |ABCDEFGH|\n")
 	return buf.String()
+}
+
+// Minimax 法
+// func (b *Board) Minimax(depth int, moves []Move) Move {
+
+// }
+
+// Evaluate する
+// func (b *Board) Evaluate(depth int, moves []Move) int {
+	
+// }
+
+// 重み付けをして最も良いMoveを返す
+func (b *Board) WeightBoard(moves []Move) Move {
+
+	currentScore := -100
+	firstScoreMap := map[int][]int {
+		1: []int{30, -12, 0, -1, -1, 0, -12, 30},
+		2: []int{-12, -15, -3, -3, -3, -3, -15, -12},
+		3: []int{0, -3, 0, -1, -1, 0, -3, 0},
+		4: []int{-1, -3, -1, -1, -1, -1, -3, -1},
+		5: []int{-1, -3, -1, -1, -1, -1, -3, -1},
+		6: []int{0, -3, 0, -1, -1, 0, -3, 0},
+		7: []int{-12, -15, -3, -3, -3, -3, -15, -12},
+		8: []int{30, -12, 0, -1, -1, 0, -12, 30},
+	}
+
+	// 序盤は角がとても重要だが、終盤はそれほど重要ではない
+	// lastScoreMap := map[int][]int {
+	// 	1: []int{15, -6, 0, -1, -1, 0, -6, 15},
+	// 	2: []int{-6, -8, -3, -3, -3, -3, -8, -6},
+	// 	3: []int{0, -3, 0, -1, -1, 0, -3, 0},
+	// 	4: []int{-1, -3, -1, -1, -1, -1, -3, -1},
+	// 	5: []int{-1, -3, -1, -1, -1, -1, -3, -1},
+	// 	6: []int{0, -3, 0, -1, -1, 0, -3, 0},
+	// 	7: []int{-6, -8, -3, -3, -3, -3, -8, -6},
+	// 	8: []int{15, -6, 0, -1, -1, 0, -6, 15},
+	// }
+
+	// どうやってゲームの進行度を取得するか考える
+
+	bestMove := moves[0]
+	for _, move := range moves {
+		score := firstScoreMap[move.Where[0]][move.Where[1]-1]
+		if score > currentScore {
+			bestMove = move
+			currentScore = score
+		}
+	}
+
+	return bestMove
 }
